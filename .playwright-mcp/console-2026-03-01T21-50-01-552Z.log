@@ -1,0 +1,9 @@
+[  108170ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5174/src/App.css?t=1772401909718:0
+[  108170ms] [ERROR] [vite] Failed to reload /src/App.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5174/@vite/client:808
+[  108171ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5174/src/components/CaptionView.tsx?t=1772401909720:0
+[  108171ms] [ERROR] [vite] Failed to reload /src/components/CaptionView.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5174/@vite/client:808
+[  108171ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5174/src/index.css?t=1772401909721:0
+[  108172ms] [ERROR] [vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5174/@vite/client:808
+[  108172ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5174/src/App.tsx?t=1772401909722:0
+[  108172ms] [ERROR] [vite] Failed to reload /src/App.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5174/@vite/client:808
+[  108228ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ chrome-error://chromewebdata/:0

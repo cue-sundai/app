@@ -144,11 +144,10 @@ async def run_realtime_session(
                             )
                         continue
                     if mt == "committed_transcript":
-                        text = (msg.get("text") or "").strip()
-                        if text:
-                            out_queue.put_nowait(
-                                ("segments", [{"speaker": speaker_id, "text": text}], speaker_id)
-                            )
+                        # Skip plain committed_transcript — the timestamped
+                        # version (committed_transcript_with_timestamps) follows
+                        # with the same text plus speaker info, so we avoid duplicates.
+                        pass
                     elif mt == "committed_transcript_with_timestamps":
                         text = (msg.get("text") or "").strip()
                         if text:
