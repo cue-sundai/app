@@ -211,7 +211,7 @@ Return ONLY valid JSON:
         client = AsyncAnthropic(api_key=anthropic_key)
         try:
             resp = await client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=256,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -235,7 +235,7 @@ Return ONLY valid JSON:
     try:
         # We use a default voice ID for ElevenLabs
         import base64
-        voice_id = "cjVigY5qzO86HufDd9na" # generic voice
+        voice_id = "21m00Tcm4TlvDq8ikWAM" # "Rachel" default voice
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         
         headers = {
@@ -267,4 +267,5 @@ Return ONLY valid JSON:
         }
     except Exception as e:
         print(f"TTS Error: {e}")
-        return {"interject": False}
+        # Still return the text even if TTS fails — frontend will show it without audio
+        return {"interject": True, "text": text, "audio_b64": None}
