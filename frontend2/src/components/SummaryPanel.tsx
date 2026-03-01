@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ActionItems, type ActionItem, type CalendarEvent } from "./ActionItems";
 
 interface SummaryPanelProps {
   transcript: string;
+  onBack?: () => void;
 }
 
-export function SummaryPanel({ transcript }: SummaryPanelProps) {
+export function SummaryPanel({ transcript, onBack }: SummaryPanelProps) {
   const [summary, setSummary] = useState<{
     summary: string;
     people: string[];
@@ -14,6 +15,15 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
     calendar_events: CalendarEvent[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const autoTriggered = useRef(false);
+
+  // Auto-summarize on first mount when there's a transcript
+  useEffect(() => {
+    if (transcript && !summary && !loading && !autoTriggered.current) {
+      autoTriggered.current = true;
+      handleSummarize();
+    }
+  });
 
   async function handleSummarize() {
     setLoading(true);
@@ -59,6 +69,24 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      {/* Back to coach link */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{
+            alignSelf: "flex-start",
+            background: "none",
+            border: "none",
+            color: "#a5b4fc",
+            fontSize: "0.8rem",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          &larr; Back to Live Coach
+        </button>
+      )}
+
       {/* Summary card */}
       <div
         style={{

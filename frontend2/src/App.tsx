@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { useAudioCapture } from "./hooks/useAudioCapture";
 import { CaptionView } from "./components/CaptionView";
 import { SummaryPanel } from "./components/SummaryPanel";
+import { CoachPanel } from "./components/CoachPanel";
 import "./App.css";
 
 const DEMO_LINES = [
@@ -25,6 +26,8 @@ const DEMO_LINES = [
 function App() {
   const [captions, setCaptions] = useState<string[]>([]);
   const [demoing, setDemoing] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
   const demoTimer = useRef<number | null>(null);
   const demoIndex = useRef(0);
 
@@ -36,6 +39,8 @@ function App() {
 
   function startDemo() {
     setCaptions([]);
+    setShowSummary(false);
+    setStartTime(Date.now());
     setDemoing(true);
     demoIndex.current = 0;
     demoTimer.current = window.setInterval(() => {
@@ -78,7 +83,7 @@ function App() {
           </button>
           <button
             className={`btn-record ${isRecording ? "active" : ""}`}
-            onClick={isRecording ? stop : start}
+            onClick={isRecording ? stop : () => { setShowSummary(false); setStartTime(Date.now()); start(); }}
             disabled={demoing}
           >
             {isRecording ? "Stop" : "Start Listening"}
@@ -96,9 +101,24 @@ function App() {
         </section>
 
         <section className="panel">
-          <div className="panel-header">Conversation Intel</div>
+          <div className="panel-header">
+            {showSummary ? "Conversation Intel" : "Live Coach"}
+          </div>
           <div className="panel-body">
-            <SummaryPanel transcript={transcript} />
+            {showSummary ? (
+              <SummaryPanel
+                transcript={transcript}
+                onBack={() => setShowSummary(false)}
+              />
+            ) : (
+              <CoachPanel
+                transcript={transcript}
+                captionCount={captions.length}
+                isActive={demoing || isRecording}
+                startTime={startTime}
+                onSummarize={() => setShowSummary(true)}
+              />
+            )}
           </div>
         </section>
       </main>

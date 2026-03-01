@@ -38,3 +38,29 @@ class SummarizeResponse(BaseModel):
     topics: list[str]
     action_items: list[ActionItem] = []
     calendar_events: list[CalendarEvent] = []
+
+
+# ── Coach models ──
+
+
+class PersonEntity(BaseModel):
+    """A person detected in the conversation."""
+
+    name: str
+    detail: str | None = None
+
+
+class CoachRequest(BaseModel):
+    """Request body for the /api/coach endpoint."""
+
+    transcript: str
+    elapsed_seconds: int = 0
+
+
+class CoachResponse(BaseModel):
+    """Real-time coaching insights for an in-progress conversation."""
+
+    people: list[PersonEntity] = []
+    topics: list[str] = []
+    suggested_questions: list[str] = []
+    nudge: str | None = None

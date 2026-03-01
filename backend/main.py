@@ -4,9 +4,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from models import SummarizeRequest, SummarizeResponse, ActionItem, CalendarEvent
+from models import SummarizeRequest, SummarizeResponse, ActionItem, CalendarEvent, CoachRequest, CoachResponse
 from services.transcriber import transcribe
 from services.summarizer import summarize
+from services.coach import coach_analyze
 
 app = FastAPI(title="Side-Quest API")
 
@@ -41,6 +42,13 @@ async def summarize_conversation(req: SummarizeRequest):
     """Summarize the full conversation transcript."""
     result = await summarize(req.transcript)
     return SummarizeResponse(**result)
+
+
+@app.post("/api/coach", response_model=CoachResponse)
+async def coach_conversation(req: CoachRequest):
+    """Analyze an in-progress conversation for real-time coaching insights."""
+    result = await coach_analyze(req.transcript, req.elapsed_seconds)
+    return CoachResponse(**result)
 
 
 # ── Integration endpoints ──
