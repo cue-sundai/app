@@ -1,4 +1,4 @@
-# Side-Quest
+# Cue
 
 Conversation companion for networking — listens live, captions, and summarizes conversations with new people.
 
