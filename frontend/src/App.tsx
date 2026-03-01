@@ -3,6 +3,7 @@ import { useAudioCapture, type TranscriptSegment } from "./hooks/useAudioCapture
 import { CaptionView } from "./components/CaptionView";
 import { SummaryPanel } from "./components/SummaryPanel";
 import { useFaceTracking } from "./hooks/useFaceTracking";
+import "./App.css";
 
 function App() {
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
@@ -14,7 +15,6 @@ function App() {
   const { faces: activeFaces, isReady: trackerReady } = useFaceTracking(videoRef, { staticFallback: true, distanceThreshold: 0.1 });
   const activeSpeakersRef = useRef<number[]>([0]);
   const [speakerNames, setSpeakerNames] = useState<Record<number, string>>({});
-
 
   useEffect(() => {
     const speakingIds = activeFaces.filter((f) => f.jawOpen > 0.08).map((f) => f.id);
@@ -96,6 +96,7 @@ function App() {
     ...segments,
     ...(partialSegment ? [partialSegment] : []),
   ];
+
   const transcript = displaySegments
     .map(
       (s) =>
@@ -104,87 +105,106 @@ function App() {
     .join(" ");
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "2rem" }}>
-      <h1>Side-Quest</h1>
-      <p style={{ color: "#888" }}>
-        Conversation companion for networking
-      </p>
-
-      <div style={{ margin: "1rem 0" }}>
-        <button onClick={isRecording ? stop : start}>
-          {isRecording ? "Stop Listening" : "Start Listening"}
-        </button>
-      </div>
-
-      {videoStream && (
-        <div style={{ marginBottom: "1rem", position: "relative", width: "100%", maxWidth: 640 }}>
-          {!trackerReady && (
-            <div style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              background: "rgba(0,0,0,0.7)",
-              color: "white",
-              padding: "4px 8px",
-              borderRadius: "4px",
-              fontSize: "12px",
-              zIndex: 10
-            }}>
-              Loading AI Face Tracker...
-            </div>
-          )}
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            style={{
-              width: "100%",
-              borderRadius: 8,
-              background: "#111",
-              display: "block"
-            }}
-          />
-          {activeFaces.map(face => (
-            <div
-              key={face.id}
-              style={{
-                position: "absolute",
-                left: `${face.box.origin_x * 100}%`,
-                top: `${face.box.origin_y * 100}%`,
-                width: `${face.box.width * 100}%`,
-                height: `${face.box.height * 100}%`,
-                border: `3px solid ${face.jawOpen > 0.08 ? "lime" : "red"}`,
-                borderRadius: 8,
-                boxShadow: face.jawOpen > 0.08 ? "0 0 15px lime" : "none",
-                transition: "all 0.1s ease-out",
-                pointerEvents: "none",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                justifyContent: "flex-start"
-              }}
-            >
-              <div style={{
-                background: face.jawOpen > 0.08 ? "lime" : "red",
-                color: "black",
-                fontSize: "12px",
-                fontWeight: "bold",
-                padding: "2px 6px",
-                borderRadius: "0 0 4px 0",
-                textTransform: "uppercase"
-              }}>
-                {speakerNames[face.id] || `ID ${face.id}`}
-                {face.jawOpen > 0.08 ? " • SPEAKING" : ""}
-              </div>
-            </div>
-          ))}
+    <>
+      <header className="header">
+        <div className="header-left">
+          <span className="header-title">Side-Quest</span>
+          <span className={`status-badge ${isRecording ? "recording" : ""}`}>
+            <span className="status-dot" />
+            {isRecording ? "Listening" : "Idle"}
+          </span>
         </div>
-      )}
+        <div className="header-right">
+          <button
+            className={`btn-record ${isRecording ? "active" : ""}`}
+            onClick={isRecording ? stop : start}
+          >
+            {isRecording ? "Stop" : "Start Listening"}
+          </button>
+        </div>
+      </header>
 
-      <CaptionView segments={displaySegments} names={speakerNames} />
-      <SummaryPanel transcript={transcript} isRecording={isRecording} />
-    </div>
+      <main className="dashboard">
+        <section className="panel panel-left">
+          <div className="panel-header">Live Transcript</div>
+          <div className="panel-body">
+            {videoStream && (
+              <div style={{ marginBottom: "1.5rem", position: "relative", width: "100%" }}>
+                {!trackerReady && (
+                  <div style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    background: "rgba(0,0,0,0.7)",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    zIndex: 10
+                  }}>
+                    Loading AI Face Tracker...
+                  </div>
+                )}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  style={{
+                    width: "100%",
+                    borderRadius: 8,
+                    background: "#111",
+                    display: "block"
+                  }}
+                />
+                {activeFaces.map(face => (
+                  <div
+                    key={face.id}
+                    style={{
+                      position: "absolute",
+                      left: `${face.box.origin_x * 100}%`,
+                      top: `${face.box.origin_y * 100}%`,
+                      width: `${face.box.width * 100}%`,
+                      height: `${face.box.height * 100}%`,
+                      border: `3px solid ${face.jawOpen > 0.08 ? "#22c55e" : "#ef4444"}`,
+                      borderRadius: 8,
+                      boxShadow: face.jawOpen > 0.08 ? "0 0 15px #22c55e" : "none",
+                      transition: "all 0.1s ease-out",
+                      pointerEvents: "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      justifyContent: "flex-start"
+                    }}
+                  >
+                    <div style={{
+                      background: face.jawOpen > 0.08 ? "#22c55e" : "#ef4444",
+                      color: "black",
+                      fontSize: "10px",
+                      fontWeight: "bold",
+                      padding: "1px 4px",
+                      borderRadius: "0 0 4px 0",
+                      textTransform: "uppercase"
+                    }}>
+                      {speakerNames[face.id] || `ID ${face.id}`}
+                      {face.jawOpen > 0.08 ? " • SPEAKING" : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <CaptionView segments={displaySegments} names={speakerNames} />
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-header">Conversation Intel</div>
+          <div className="panel-body">
+            <SummaryPanel transcript={transcript} isRecording={isRecording} />
+          </div>
+        </section>
+      </main>
+    </>
   );
 }
 

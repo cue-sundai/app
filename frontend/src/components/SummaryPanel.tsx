@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { ActionItems, type ActionItem } from "./ActionItems";
 
 interface SummaryPanelProps {
   transcript: string;
@@ -10,6 +11,7 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     summary: string;
     people: string[];
     topics: string[];
+    action_items?: ActionItem[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const wasRecordingRef = useRef(false);
@@ -18,7 +20,7 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     if (!transcript.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/summarize", {
+      const res = await fetch(`http://${window.location.hostname}:8820/api/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript }),
@@ -30,7 +32,6 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     }
   }
 
-  // When recording stops, auto-run summarization
   useEffect(() => {
     if (wasRecordingRef.current && !isRecording && transcript.trim()) {
       runSummarize();
@@ -38,32 +39,145 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     wasRecordingRef.current = isRecording;
   }, [isRecording, transcript]);
 
+  if (!summary && !loading) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "3rem" }}>
+        <p style={{ color: "#52525b", fontSize: "0.9rem", marginBottom: "1rem" }}>
+          Analyze the conversation to extract insights (auto-runs when you stop
+          listening)
+        </p>
+        <button
+          onClick={runSummarize}
+          disabled={!transcript}
+          className="btn-summarize"
+          style={{
+            padding: "0.6em 1.5em",
+          }}
+        >
+          Summarize
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "3rem", color: "#71717a" }}>
+        Analyzing conversation...
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "1rem", borderTop: "1px solid #333" }}>
-      <button onClick={runSummarize} disabled={!transcript || loading}>
-        {loading ? "Summarizing..." : "Summarize Conversation"}
-      </button>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div
+        style={{
+          backgroundColor: "#18181b",
+          border: "1px solid #27272a",
+          borderRadius: "8px",
+          padding: "1rem",
+        }}
+      >
+        <h3
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            color: "#71717a",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Summary
+        </h3>
+        <p style={{ fontSize: "0.9rem", lineHeight: 1.7, color: "#d4d4d8" }}>
+          {summary!.summary}
+        </p>
+      </div>
 
-      {summary && (
-        <div style={{ marginTop: "1rem" }}>
-          <h3>Summary</h3>
-          <p>{summary.summary}</p>
-
-          <h4>People</h4>
-          <ul>
-            {summary.people.map((p, i) => (
-              <li key={i}>{p}</li>
+      {summary!.people.length > 0 && (
+        <div>
+          <h3
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "#71717a",
+              marginBottom: "0.5rem",
+            }}
+          >
+            People
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            {summary!.people.map((person, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  padding: "0.25em 0.75em",
+                  borderRadius: "999px",
+                  fontSize: "0.8rem",
+                  fontWeight: 500,
+                  backgroundColor: "#1e1b4b",
+                  color: "#a5b4fc",
+                  border: "1px solid #312e81",
+                }}
+              >
+                {person}
+              </span>
             ))}
-          </ul>
-
-          <h4>Topics</h4>
-          <ul>
-            {summary.topics.map((t, i) => (
-              <li key={i}>{t}</li>
-            ))}
-          </ul>
+          </div>
         </div>
       )}
+
+      {summary!.topics.length > 0 && (
+        <div>
+          <h3
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "#71717a",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Topics
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            {summary!.topics.map((topic, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  padding: "0.25em 0.75em",
+                  borderRadius: "999px",
+                  fontSize: "0.8rem",
+                  fontWeight: 500,
+                  backgroundColor: "#1c1c1f",
+                  color: "#a1a1aa",
+                  border: "1px solid #3f3f46",
+                }}
+              >
+                {topic}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {summary!.action_items?.length ? (
+        <ActionItems items={summary!.action_items} />
+      ) : null}
+
+      <button
+        onClick={runSummarize}
+        disabled={!transcript}
+        style={{ alignSelf: "flex-start", fontSize: "0.8rem" }}
+      >
+        Re-summarize
+      </button>
     </div>
   );
 }
