@@ -26,7 +26,7 @@ from services.coach import coach_analyze
 
 load_dotenv()
 
-app = FastAPI(title="Side-Quest API")
+app = FastAPI(title="Cue API")
 
 app.add_middleware(
     CORSMiddleware,  # type: ignore[invalid-argument-type]

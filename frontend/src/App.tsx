@@ -273,7 +273,7 @@ function App() {
     <>
       <header className="header">
         <div className="header-left">
-          <span className="header-title">Side-Quest</span>
+          <span className="header-title">Cue</span>
           <span className={`status-badge ${isRecording ? "recording" : ""}`}>
             <span className="status-dot" />
             {isRecording ? "Listening" : "Idle"}

@@ -1,0 +1,4 @@
+[     102ms] [WARNING] W0301 22:29:26.097000 1895072 face_landmarker_graph.cc:180] Sets FaceBlendshapesGraph acceleration to xnnpack by default. @ https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm/vision_wasm_internal.js:9
+[     112ms] [WARNING] W0301 22:29:26.107000 1895072 gl_context.cc:1060] OpenGL error checking is disabled @ https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm/vision_wasm_internal.js:9
+[  136258ms] [WARNING] W0301 22:31:42.253000 1895072 face_landmarker_graph.cc:180] Sets FaceBlendshapesGraph acceleration to xnnpack by default. @ https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm/vision_wasm_internal.js:9
+[  136266ms] [WARNING] W0301 22:31:42.262000 1895072 gl_context.cc:1060] OpenGL error checking is disabled @ https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm/vision_wasm_internal.js:9
