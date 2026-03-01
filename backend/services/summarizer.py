@@ -20,7 +20,13 @@ Analyze this conversation transcript and respond with a single JSON object (no m
 
 Transcript:
 """
-_EMPTY: dict[str, Any] = {"summary": "", "people": [], "topics": [], "action_items": [], "calendar_events": []}
+_EMPTY: dict[str, Any] = {
+    "summary": "",
+    "people": [],
+    "topics": [],
+    "action_items": [],
+    "calendar_events": [],
+}
 
 
 def _parse_json_from_response(text: str) -> dict[str, Any]:
@@ -46,8 +52,12 @@ def _normalize_result(out: dict[str, Any]) -> dict[str, Any]:
         "summary": out.get("summary", "") or "No summary generated.",
         "people": out.get("people") if isinstance(out.get("people"), list) else [],
         "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
-        "action_items": out.get("action_items") if isinstance(out.get("action_items"), list) else [],
-        "calendar_events": out.get("calendar_events") if isinstance(out.get("calendar_events"), list) else [],
+        "action_items": out.get("action_items")
+        if isinstance(out.get("action_items"), list)
+        else [],
+        "calendar_events": out.get("calendar_events")
+        if isinstance(out.get("calendar_events"), list)
+        else [],
     }
 
 
