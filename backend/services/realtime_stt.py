@@ -17,51 +17,32 @@ def _get_api_key() -> str:
     return (raw or "").strip()
 
 
-def _mime_to_ffmpeg_fmt(mime_type: str) -> str:
-    m = (mime_type or "").strip().lower()
-    if "webm" in m:
-        return "webm"
-    if "mp4" in m or "m4a" in m:
-        return "mp4"
-    if "ogg" in m:
-        return "ogg"
-    return "webm"
-
-
 async def _audio_to_pcm_16k(audio_bytes: bytes, mime_type: str) -> bytes:
-    """Convert WebM/MP4/OGG to PCM 16kHz mono using ffmpeg (stdin/stdout). Raises on failure."""
-    fmt = _mime_to_ffmpeg_fmt(mime_type)
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        raise RuntimeError("ffmpeg not found. Install ffmpeg and ensure it is on PATH.")
-    proc = await asyncio.create_subprocess_exec(
-        ffmpeg,
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        fmt,
-        "-i",
-        "pipe:0",
-        "-f",
-        "s16le",
-        "-ar",
-        str(SAMPLE_RATE),
-        "-ac",
-        "1",
-        "pipe:1",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await proc.communicate(input=audio_bytes)
-    if proc.returncode != 0 and stderr:
-        raise RuntimeError(
-            f"ffmpeg failed: {stderr.decode('utf-8', errors='replace').strip()}"
+    """Convert WebM/MP4/OGG to PCM 16kHz mono using PyAV. No system ffmpeg required."""
+    def _convert():
+        # Open the audio bytes as an in-memory file
+        import av
+        import io
+        container = av.open(io.BytesIO(audio_bytes))
+        
+        # Set up a resampler to get 16kHz, mono, 16-bit PCM (s16le)
+        resampler = av.AudioResampler(
+            format='s16', 
+            layout='mono', 
+            rate=16000
         )
-    if proc.returncode != 0:
-        raise RuntimeError("ffmpeg failed")
-    return stdout
+        
+        pcm_data = bytearray()
+        for frame in container.decode(audio=0):
+            resampled_frames = resampler.resample(frame)
+            for resampled_frame in resampled_frames:
+                # Extract the raw PCM bytes
+                pcm_data.extend(resampled_frame.to_ndarray().tobytes())
+                
+        return bytes(pcm_data)
+
+    # Run the synchronous CPU-bound conversion in a threadpool so it doesn't block asyncio
+    return await asyncio.to_thread(_convert)
 
 
 async def run_realtime_session(
