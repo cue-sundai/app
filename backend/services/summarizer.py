@@ -1,7 +1,7 @@
 """Conversation summarization via OpenAI or Anthropic.
 
 Uses OPENAI_API_KEY or ANTHROPIC_API_KEY from the environment.
-Returns summary, people, and topics for the frontend.
+Returns summary, people, topics, action_items, and calendar_events for the frontend.
 """
 
 import json
@@ -15,10 +15,12 @@ Analyze this conversation transcript and respond with a single JSON object (no m
 - "summary": string, 2-4 sentences summarizing what was discussed and any outcomes.
 - "people": array of strings, names or identifiers of people mentioned or implied (e.g. "Sarah", "the interviewer"). Use empty array if none.
 - "topics": array of strings, main topics or themes (e.g. "project timeline", "budget"). Use empty array if none.
+- "action_items": array of objects with keys "text" (description of the action item) and "assignee" (person name or null if unassigned). These are concrete next steps someone committed to. Use empty array if none.
+- "calendar_events": array of objects with keys "title", "date" (if mentioned, else null), "time" (if mentioned, else null), "attendee" (person name or null). These are specific meetings, calls, or events with a time/date. Use empty array if none.
 
 Transcript:
 """
-_EMPTY = {"summary": "", "people": [], "topics": []}
+_EMPTY: dict[str, Any] = {"summary": "", "people": [], "topics": [], "action_items": [], "calendar_events": []}
 
 
 def _parse_json_from_response(text: str) -> dict[str, Any]:
@@ -38,6 +40,17 @@ def _parse_json_from_response(text: str) -> dict[str, Any]:
     return _EMPTY
 
 
+def _normalize_result(out: dict[str, Any]) -> dict[str, Any]:
+    """Normalize LLM output to expected schema."""
+    return {
+        "summary": out.get("summary", "") or "No summary generated.",
+        "people": out.get("people") if isinstance(out.get("people"), list) else [],
+        "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
+        "action_items": out.get("action_items") if isinstance(out.get("action_items"), list) else [],
+        "calendar_events": out.get("calendar_events") if isinstance(out.get("calendar_events"), list) else [],
+    }
+
+
 async def _summarize_openai(transcript: str, api_key: str) -> dict[str, Any]:
     from openai import AsyncOpenAI
 
@@ -54,11 +67,7 @@ async def _summarize_openai(transcript: str, api_key: str) -> dict[str, Any]:
     )
     content = (response.choices[0].message.content or "").strip()
     out = _parse_json_from_response(content)
-    return {
-        "summary": out.get("summary", "") or "No summary generated.",
-        "people": out.get("people") if isinstance(out.get("people"), list) else [],
-        "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
-    }
+    return _normalize_result(out)
 
 
 async def _summarize_anthropic(transcript: str, api_key: str) -> dict[str, Any]:
@@ -67,7 +76,7 @@ async def _summarize_anthropic(transcript: str, api_key: str) -> dict[str, Any]:
     client = AsyncAnthropic(api_key=api_key)
     try:
         response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[
                 {
@@ -79,23 +88,21 @@ async def _summarize_anthropic(transcript: str, api_key: str) -> dict[str, Any]:
         block = response.content[0]
         content = (getattr(block, "text", "") or "").strip()
         out = _parse_json_from_response(content)
-        return {
-            "summary": out.get("summary", "") or "No summary generated.",
-            "people": out.get("people") if isinstance(out.get("people"), list) else [],
-            "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
-        }
+        return _normalize_result(out)
     except Exception as e:
         return {
             "summary": f"Anthropic error: {e}",
             "people": [],
             "topics": [],
+            "action_items": [],
+            "calendar_events": [],
         }
 
 
 async def summarize(transcript: str) -> dict[str, Any]:
     """Summarize a conversation transcript using OpenAI or Anthropic.
 
-    Returns dict with keys: summary (str), people (list[str]), topics (list[str]).
+    Returns dict with keys: summary, people, topics, action_items, calendar_events.
     """
     openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
@@ -109,13 +116,15 @@ async def summarize(transcript: str) -> dict[str, Any]:
         "summary": "No OPENAI_API_KEY or ANTHROPIC_API_KEY set. Add one to backend/.env.",
         "people": [],
         "topics": [],
+        "action_items": [],
+        "calendar_events": [],
     }
 
 async def chat_with_llm(transcript: str, prompt: str) -> str:
     """Chat interactively with the transcript using an LLM."""
     openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
-    
+
     sys_prompt = f"You are a helpful assistant assisting a user during a real-life context. Rely on the following live transcript as context:\n\nTRANSCRIPT:\n{transcript}"
 
     if openai_key:
@@ -132,13 +141,13 @@ async def chat_with_llm(transcript: str, prompt: str) -> str:
             return (resp.choices[0].message.content or "").strip()
         except Exception as e:
             return f"OpenAI error: {e}"
-            
+
     if anthropic_key:
         from anthropic import AsyncAnthropic
         client = AsyncAnthropic(api_key=anthropic_key)
         try:
             resp = await client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-sonnet-4-20250514",
                 max_tokens=1024,
                 system=sys_prompt,
                 messages=[{"role": "user", "content": prompt}]
@@ -147,7 +156,7 @@ async def chat_with_llm(transcript: str, prompt: str) -> str:
             return (getattr(block, "text", "") or "").strip()
         except Exception as e:
             return f"Anthropic error: {e}"
-            
+
     return "No API Key available."
 
 async def agent_interject(transcript: str) -> dict[str, Any]:

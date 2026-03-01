@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ActionItems, type ActionItem } from "./ActionItems";
+import { ActionItems, type ActionItem, type CalendarEvent } from "./ActionItems";
 
 interface SummaryPanelProps {
   transcript: string;
@@ -12,6 +12,7 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     people: string[];
     topics: string[];
     action_items?: ActionItem[];
+    calendar_events?: CalendarEvent[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const wasRecordingRef = useRef(false);
@@ -167,8 +168,11 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
         </div>
       )}
 
-      {summary!.action_items?.length ? (
-        <ActionItems items={summary!.action_items} />
+      {(summary!.action_items?.length || summary!.calendar_events?.length) ? (
+        <ActionItems
+          items={summary!.action_items || []}
+          calendarEvents={summary!.calendar_events || []}
+        />
       ) : null}
 
       <button
