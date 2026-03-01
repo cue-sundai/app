@@ -14,9 +14,17 @@ class SummarizeRequest(BaseModel):
     transcript: str
 
 
+class ActionItem(BaseModel):
+    """A single action item extracted from a conversation."""
+
+    text: str
+    assignee: str | None = None
+
+
 class SummarizeResponse(BaseModel):
     """Structured summary of a conversation."""
 
     summary: str
     people: list[str]
     topics: list[str]
+    action_items: list[ActionItem] = []
