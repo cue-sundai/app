@@ -119,7 +119,7 @@ class SurveillanceApp:
 
     def update_frame(self):
         """Reads frame, saves every 5s, updates GUI"""
-        if not self.running:
+        if not self.running or self.cap is None:
             return
 
         ret, frame = self.cap.read()
@@ -135,9 +135,10 @@ class SurveillanceApp:
             # Convert OpenCV frame (BGR) to Tkinter friendly format (RGBA)
             cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
             img = Image.fromarray(cv2image)
-            imgtk = ImageTk.PhotoImage(image=img)
-            self.video_label.imgtk = imgtk  # Keep reference to avoid garbage collection
-            self.video_label.configure(image=imgtk)
+            self.imgtk = ImageTk.PhotoImage(
+                image=img
+            )  # Keep reference to avoid garbage collection
+            self.video_label.configure(image=self.imgtk)
 
         # Call update_frame again after 30 ms (target ~30 fps)
         self.root.after(30, self.update_frame)
