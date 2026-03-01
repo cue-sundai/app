@@ -111,71 +111,88 @@ async def summarize(transcript: str) -> dict[str, Any]:
         "topics": [],
     }
 
+
 async def chat_with_llm(transcript: str, prompt: str) -> str:
     """Chat interactively with the transcript using an LLM."""
     openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
-    
+
     sys_prompt = f"You are a helpful assistant assisting a user during a real-life context. Rely on the following live transcript as context:\n\nTRANSCRIPT:\n{transcript}"
 
     if openai_key:
         from openai import AsyncOpenAI
+
         client = AsyncOpenAI(api_key=openai_key)
         try:
             resp = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": prompt}
-                ]
+                    {"role": "user", "content": prompt},
+                ],
             )
             return (resp.choices[0].message.content or "").strip()
         except Exception as e:
             return f"OpenAI error: {e}"
-            
+
     if anthropic_key:
         from anthropic import AsyncAnthropic
+
         client = AsyncAnthropic(api_key=anthropic_key)
         try:
             resp = await client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=1024,
                 system=sys_prompt,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             block = resp.content[0]
             return (getattr(block, "text", "") or "").strip()
         except Exception as e:
             return f"Anthropic error: {e}"
-            
+
     return "No API Key available."
 
-async def agent_interject(transcript: str) -> dict[str, Any]:
-    """Decide whether to speak and generate TTS audio if so."""
+
+async def agent_interject(
+    transcript: str,
+    conversation: list[Any] | None = None,
+) -> dict[str, Any]:
+    """Decide whether to speak and generate TTS audio. Uses full conversation as context."""
     import httpx
-    
+
     openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
     eleven_labs_key = (os.environ.get("ELEVEN_LABS_API_KEY") or "").strip()
-    
+
     if not (openai_key or anthropic_key) or not eleven_labs_key:
         return {"interject": False}
-        
+
     force_interject = "[SYSTEM: YOU MUST INTERJECT NOW EVEN IF AWKWARD]" in transcript
-    
-    # Strip the system prefix from the actual transcript shown to the LLM
-    clean_transcript = transcript.replace("[SYSTEM: YOU MUST INTERJECT NOW EVEN IF AWKWARD]\n", "")
+
+    # Build full conversation transcript: prefer explicit conversation list so the AI gets entire context
+    if conversation:
+        clean_transcript = "\n".join(
+            f"[ID:{s.speaker}] {s.text}"
+            for s in conversation
+            if getattr(s, "speaker", None) is not None and getattr(s, "text", "")
+        )
+    else:
+        clean_transcript = transcript.replace(
+            "[SYSTEM: YOU MUST INTERJECT NOW EVEN IF AWKWARD]\n", ""
+        )
 
     base_instruction = """You are an AI participant in a live meeting. The conversation has paused for a few seconds.
-Review the transcript below. If there's a highly relevant, insightful question or short comment you'd like to make to contribute to the discussion, respond with "interject": true and your "text". Keep it conversational, brief (under 2 sentences), and natural. If you have nothing important to add, set "interject": false."""
+Below is the COMPLETE conversation from the start of the meeting. Use the ENTIRE conversation as context to decide whether to interject and what to say.
+If there's a somewhat relevant, insightful question or short comment you'd like to make to contribute to the discussion, respond with "interject": true and your "text". Keep it conversational, brief (under 2 sentences), and natural. If you have nothing important to add, set "interject": false."""
 
     force_instruction = """You are an AI participant in a live meeting. The user has EXPLICITLY COMMANDED you to interject.
-Review the transcript below. You MUST respond with "interject": true and provide a "text" response. Say something highly relevant to the transcript, or if the transcript is empty, quickly introduce yourself. Keep it conversational, brief (under 2 sentences), and natural. YOU MUST NOT RETURN interject: false."""
+Below is the COMPLETE conversation so far. Use the ENTIRE conversation as context. You MUST respond with "interject": true and provide a "text" response. Say something highly relevant to the conversation, or if the transcript is empty, quickly introduce yourself. Keep it conversational, brief (under 2 sentences), and natural. YOU MUST NOT RETURN interject: false."""
 
     prompt = f"""{force_instruction if force_interject else base_instruction}
 
-Transcript:
-{clean_transcript if clean_transcript.strip() else '(No conversation yet)'}
+Full conversation transcript:
+{clean_transcript.strip() or "(No conversation yet)"}
 
 Return ONLY valid JSON:
 {{
@@ -187,75 +204,70 @@ Return ONLY valid JSON:
     # Try OpenAI first
     if openai_key:
         from openai import AsyncOpenAI
+
         client = AsyncOpenAI(api_key=openai_key)
         try:
             resp = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
+                model="gpt-4o-mini", messages=[{"role": "user", "content": prompt}]
             )
             content = (resp.choices[0].message.content or "").strip()
         except Exception as e:
             print(f"OpenAI error in interject: {e}")
-            
+
     if not content and anthropic_key:
         from anthropic import AsyncAnthropic
+
         client = AsyncAnthropic(api_key=anthropic_key)
         try:
             resp = await client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=256,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             block = resp.content[0]
             content = (getattr(block, "text", "") or "").strip()
         except Exception as e:
             print(f"Anthropic error in interject: {e}")
-            
+
     print(f"LLM Response text: {content}")
     out = _parse_json_from_response(content)
     print(f"Parsed parsed JSON: {out}")
-    
+
     interject = bool(out.get("interject", False))
     text = out.get("text") or ""
-    
+
     if not interject or not text.strip():
         print("Returning because interject=False or text is empty")
         return {"interject": False}
-        
+
     # Generate TTS
     try:
         # We use a default voice ID for ElevenLabs
         import base64
-        voice_id = "cjVigY5qzO86HufDd9na" # generic voice
+
+        voice_id = "JBFqnCBsd6RMkjVDRZzb"  # same as client.py TTS
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-        
+
         headers = {
             "Accept": "audio/mpeg",
             "Content-Type": "application/json",
-            "xi-api-key": eleven_labs_key
+            "xi-api-key": eleven_labs_key,
         }
-        
+
         data = {
             "text": text,
             "model_id": "eleven_monolingual_v1",
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.5
-            }
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.5},
         }
-        
+
         async with httpx.AsyncClient() as client:
             tts_resp = await client.post(url, json=data, headers=headers)
             tts_resp.raise_for_status()
             audio_bytes = tts_resp.content
-            
+
         b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-        
-        return {
-            "interject": True,
-            "text": text,
-            "audio_b64": b64_audio
-        }
+
+        return {"interject": True, "text": text, "audio_b64": b64_audio}
     except Exception as e:
         print(f"TTS Error: {e}")
         return {"interject": False}

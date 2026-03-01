@@ -51,17 +51,22 @@ function App() {
 
     interjectingRef.current = true;
     try {
-      const transcriptString = segmentsRef.current
+      const segments = segmentsRef.current;
+      const transcriptString = segments
         .map((s) => `[ID:${s.speaker}] ${s.text}`)
         .join("\n");
 
       // We append a special prefix to the transcript if forced, so the backend LLM knows to DEFINITELY speak
       const payloadTranscript = force ? `[SYSTEM: YOU MUST INTERJECT NOW EVEN IF AWKWARD]\n${transcriptString}` : transcriptString;
 
+      // Send full conversation so the AI has entire context for interject decision
       const res = await fetch(`http://${window.location.hostname}:8820/api/agent_interject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: payloadTranscript })
+        body: JSON.stringify({
+          transcript: payloadTranscript,
+          conversation: segments.map((s) => ({ speaker: s.speaker, text: s.text })),
+        }),
       });
 
       if (!res.ok) throw new Error("Agent fetch failed");

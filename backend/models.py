@@ -28,15 +28,22 @@ class SummarizeResponse(BaseModel):
     people: list[str]
     topics: list[str]
 
+
 class ChatRequest(BaseModel):
     transcript: str
     prompt: str
 
+
 class ChatResponse(BaseModel):
     response: str
 
+
 class AgentInterjectRequest(BaseModel):
-    transcript: str
+    """Full conversation is sent so the AI has entire context for interject decision."""
+
+    transcript: str = ""
+    conversation: list[TranscriptSegment] | None = None
+
 
 class AgentInterjectResponse(BaseModel):
     interject: bool
