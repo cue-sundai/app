@@ -21,7 +21,15 @@ Browser (mic)  ──WebSocket──▸  FastAPI  ──▸  ElevenLabs STT (pla
 ```bash
 cd backend
 uv sync
+
+# Run the FastAPI Web Server
 uv run uvicorn main:app --reload --port 8820
+
+# OR Run the Native Copilot Tkinter Client
+uv run client.py
+
+# OR Run the local Surveillance App
+uv run app.py
 ```
 
 ### Frontend

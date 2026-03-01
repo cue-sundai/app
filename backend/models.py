@@ -1,10 +1,17 @@
 from pydantic import BaseModel
 
 
-class TranscriptChunk(BaseModel):
-    """A single chunk of transcribed speech sent to the client via WebSocket."""
+class TranscriptSegment(BaseModel):
+    """One speaker segment in a transcription."""
 
+    speaker: int
     text: str
+
+
+class TranscriptChunk(BaseModel):
+    """Transcription result sent to the client via WebSocket."""
+
+    segments: list[TranscriptSegment]
     is_final: bool = False
 
 
@@ -38,6 +45,15 @@ class SummarizeResponse(BaseModel):
     topics: list[str]
     action_items: list[ActionItem] = []
     calendar_events: list[CalendarEvent] = []
+
+
+class ChatRequest(BaseModel):
+    transcript: str
+    prompt: str
+
+
+class ChatResponse(BaseModel):
+    response: str
 
 
 # ── Coach models ──
