@@ -80,3 +80,16 @@ class CoachResponse(BaseModel):
     topics: list[str] = []
     suggested_questions: list[str] = []
     nudge: str | None = None
+
+
+# ── Agent interjection models ──
+
+
+class AgentInterjectRequest(BaseModel):
+    transcript: str
+
+
+class AgentInterjectResponse(BaseModel):
+    interject: bool
+    text: str | None = None
+    audio_b64: str | None = None

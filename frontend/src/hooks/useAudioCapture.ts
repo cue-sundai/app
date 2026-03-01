@@ -20,6 +20,7 @@ export function useAudioCapture(
   activeSpeakersRef?: React.MutableRefObject<number[]>
 ) {
   const [isRecording, setIsRecording] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -72,8 +73,17 @@ export function useAudioCapture(
       processorRef.current = processor;
 
       processor.onaudioprocess = (e) => {
+        const float32Array = e.inputBuffer.getChannelData(0);
+
+        // Calculate RMS audio level
+        let sum = 0;
+        for (let i = 0; i < float32Array.length; i++) {
+          sum += float32Array[i] * float32Array[i];
+        }
+        const rms = Math.sqrt(sum / float32Array.length);
+        setAudioLevel(rms);
+
         if (wsRef.current?.readyState === WebSocket.OPEN) {
-          const float32Array = e.inputBuffer.getChannelData(0);
           const int16Array = new Int16Array(float32Array.length);
           for (let i = 0; i < float32Array.length; i++) {
             let s = Math.max(-1, Math.min(1, float32Array[i]));
@@ -136,7 +146,8 @@ export function useAudioCapture(
     streamRef.current = null;
     setVideoStream(null);
     setIsRecording(false);
+    setAudioLevel(0);
   }, []);
 
-  return { isRecording, start, stop, videoStream };
+  return { isRecording, audioLevel, start, stop, videoStream };
 }

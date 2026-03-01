@@ -8,9 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from models import SummarizeRequest, SummarizeResponse, ChatRequest, ChatResponse, ActionItem, CalendarEvent, CoachRequest, CoachResponse
+from models import (
+    SummarizeRequest, SummarizeResponse, ChatRequest, ChatResponse,
+    ActionItem, CalendarEvent, CoachRequest, CoachResponse,
+    AgentInterjectRequest, AgentInterjectResponse,
+)
 from services.realtime_stt import run_realtime_session
-from services.summarizer import summarize, chat_with_llm
+from services.summarizer import summarize, chat_with_llm, agent_interject
 from services.coach import coach_analyze
 
 load_dotenv()
@@ -18,7 +22,7 @@ load_dotenv()
 app = FastAPI(title="Side-Quest API")
 
 app.add_middleware(
-    CORSMiddleware,  # ty: ignore[invalid-argument-type]
+    CORSMiddleware,  # type: ignore[invalid-argument-type]
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
@@ -155,6 +159,12 @@ async def coach_conversation(req: CoachRequest):
     """Analyze an in-progress conversation for real-time coaching insights."""
     result = await coach_analyze(req.transcript, req.elapsed_seconds)
     return CoachResponse(**result)
+
+
+@app.post("/api/agent_interject", response_model=AgentInterjectResponse)
+async def api_agent_interject(req: AgentInterjectRequest):
+    result = await agent_interject(req.transcript)
+    return AgentInterjectResponse(**result)
 
 
 # ── Integration endpoints ──

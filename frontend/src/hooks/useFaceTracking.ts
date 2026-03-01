@@ -7,6 +7,7 @@ export interface TrackedFace {
     box: { origin_x: number; origin_y: number; width: number; height: number };
     lastSeenFrame: number;
     jawOpen: number;
+    mouthActivity: number;
 }
 
 interface FaceTrackingOptions {
@@ -105,12 +106,24 @@ export function useFaceTracking(
                     }
 
                     let jawOpen = 0;
+                    let mouthActivity = 0;
                     if (results.faceBlendshapes && results.faceBlendshapes[index]) {
                         const shapes = results.faceBlendshapes[index].categories;
                         const jawOpenCategory = shapes.find(s => s.categoryName === "jawOpen");
                         if (jawOpenCategory) {
                             jawOpen = jawOpenCategory.score;
                         }
+
+                        // Aggregate several mouth-related shapes for better sensitivity
+                        const relevantCategories = [
+                            "jawOpen", "mouthFunnel", "mouthPucker",
+                            "mouthSmileLeft", "mouthSmileRight",
+                            "mouthShrugUpper", "mouthShrugLower"
+                        ];
+                        relevantCategories.forEach(cat => {
+                            const found = shapes.find(s => s.categoryName === cat);
+                            if (found) mouthActivity += found.score;
+                        });
                     }
 
                     const box = {
@@ -123,7 +136,7 @@ export function useFaceTracking(
                         x: minX + box.width / 2,
                         y: minY + box.height / 2
                     };
-                    return { box, centroid, jawOpen };
+                    return { box, centroid, jawOpen, mouthActivity };
                 });
 
                 if (staticFallback) {
@@ -135,7 +148,8 @@ export function useFaceTracking(
                             centroid: f.centroid,
                             box: f.box,
                             lastSeenFrame: currentFrame,
-                            jawOpen: f.jawOpen
+                            jawOpen: f.jawOpen,
+                            mouthActivity: f.mouthActivity
                         };
                         registryRef.current.set(id, newFace);
                         facesOutput.push(newFace);
@@ -167,7 +181,8 @@ export function useFaceTracking(
                                 centroid: f.centroid,
                                 box: f.box,
                                 lastSeenFrame: currentFrame,
-                                jawOpen: f.jawOpen
+                                jawOpen: f.jawOpen,
+                                mouthActivity: f.mouthActivity
                             };
                             registryRef.current.set(bestId, updated);
                             facesOutput.push(updated);
@@ -179,7 +194,8 @@ export function useFaceTracking(
                                 centroid: f.centroid,
                                 box: f.box,
                                 lastSeenFrame: currentFrame,
-                                jawOpen: f.jawOpen
+                                jawOpen: f.jawOpen,
+                                mouthActivity: f.mouthActivity
                             };
                             registryRef.current.set(newId, newFace);
                             facesOutput.push(newFace);
