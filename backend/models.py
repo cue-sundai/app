@@ -34,3 +34,11 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+
+class AgentInterjectRequest(BaseModel):
+    transcript: str
+
+class AgentInterjectResponse(BaseModel):
+    interject: bool
+    text: str | None = None
+    audio_b64: str | None = None

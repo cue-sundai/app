@@ -6,16 +6,16 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from models import SummarizeRequest, SummarizeResponse, ChatRequest, ChatResponse
+from models import SummarizeRequest, SummarizeResponse, ChatRequest, ChatResponse, AgentInterjectRequest, AgentInterjectResponse
 from services.realtime_stt import run_realtime_session
-from services.summarizer import summarize, chat_with_llm
+from services.summarizer import summarize, chat_with_llm, agent_interject
 
 load_dotenv()
 
 app = FastAPI(title="Side-Quest API")
 
 app.add_middleware(
-    CORSMiddleware,  # ty: ignore[invalid-argument-type]
+    CORSMiddleware,  # type: ignore[invalid-argument-type]
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
@@ -145,3 +145,8 @@ async def chat_interaction(req: ChatRequest):
     """Given the transcript context, have an AI respond to a custom prompt."""
     result = await chat_with_llm(req.transcript, req.prompt)
     return ChatResponse(response=result)
+
+@app.post("/api/agent_interject", response_model=AgentInterjectResponse)
+async def api_agent_interject(req: AgentInterjectRequest):
+    result = await agent_interject(req.transcript)
+    return AgentInterjectResponse(**result)
