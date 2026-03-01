@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useAudioCapture, type TranscriptSegment } from "./hooks/useAudioCapture";
 import { CaptionView } from "./components/CaptionView";
 import { SummaryPanel } from "./components/SummaryPanel";
+import { CoachPanel } from "./components/CoachPanel";
 import { useFaceTracking } from "./hooks/useFaceTracking";
 import "./App.css";
 
@@ -19,6 +20,13 @@ function App() {
   const activeSpeakersRef = useRef<number[]>([0]);
   const [speakerNames, setSpeakerNames] = useState<Record<number, string>>({});
   const cleaningRef = useRef<boolean>(false);
+
+  // Speaker detection smoothing state
+  const speakerVotesRef = useRef<Record<number, number>>({});  // face ID -> accumulated confidence
+  const currentSpeakerRef = useRef<number>(0);
+  const speakerLockFramesRef = useRef<number>(0);  // frames remaining in lock
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   const handleTranscript = useCallback(
     (
@@ -42,6 +50,14 @@ function App() {
 
   const { isRecording, audioLevel, start, stop, videoStream } =
     useAudioCapture(handleTranscript, activeSpeakersRef);
+
+  // Track recording start time for coach elapsed_seconds
+  useEffect(() => {
+    if (isRecording) {
+      setStartTime(Date.now());
+      setShowSummary(false);
+    }
+  }, [isRecording]);
 
   const timeoutRef = useRef<number | null>(null);
   const interjectingRef = useRef<boolean>(false);
@@ -74,10 +90,12 @@ function App() {
       const data = await res.json();
       console.log("Interjection response:", data); // Helpful for logging
 
-      if (data.interject && data.audio_b64 && data.text) {
-        // Play generated audio
-        const snd = new Audio("data:audio/mpeg;base64," + data.audio_b64);
-        snd.play();
+      if (data.interject && data.text) {
+        // Play generated audio if available
+        if (data.audio_b64) {
+          const snd = new Audio("data:audio/mpeg;base64," + data.audio_b64);
+          snd.play();
+        }
 
         // Append AI's text to the transcript
         setSegments(prev => [...prev, { speaker: -1, text: data.text }]);
@@ -136,29 +154,54 @@ function App() {
   }, [audioLevel, isRecording, triggerInterjection]);
 
   useEffect(() => {
-    // Determine active speaker based on mouth activity + audio level
-    // Lower threshold when audio is present
+    // Speaker detection with temporal smoothing and hysteresis.
+    // Instead of switching every frame, we accumulate "votes" for each face
+    // and only switch when a different face clearly dominates.
     const audioThreshold = 0.005;
-    const isSpeaking = (face: any) => {
-      if (audioLevel > audioThreshold) {
-        return face.mouthActivity > 0.04;
-      }
-      return face.jawOpen > 0.15; // Higher threshold if silent
-    };
+    const LOCK_FRAMES = 15;        // Hold current speaker for at least this many frames (~0.5s)
+    const SWITCH_MARGIN = 0.08;    // New speaker must exceed current by this margin to switch
+    const DECAY = 0.7;             // Vote decay per frame (prevents stale votes)
 
-    const candidates = activeFaces.filter(isSpeaking);
+    if (audioLevel <= audioThreshold) {
+      // No audio — don't change speaker attribution
+      return;
+    }
 
-    if (candidates.length > 0) {
-      // If audio is high, pick the one with the MOST activity
-      if (audioLevel > audioThreshold) {
-        const topFace = candidates.reduce((prev, current) =>
-          (prev.mouthActivity > current.mouthActivity) ? prev : current
-        );
-        activeSpeakersRef.current = [topFace.id];
-      } else {
-        activeSpeakersRef.current = candidates.map(f => f.id);
+    // Decay all existing votes
+    const votes = speakerVotesRef.current;
+    for (const id in votes) {
+      votes[id] *= DECAY;
+    }
+
+    // Add votes based on mouth activity (higher threshold than before)
+    for (const face of activeFaces) {
+      if (face.mouthActivity > 0.08) {
+        votes[face.id] = (votes[face.id] || 0) + face.mouthActivity;
       }
     }
+
+    // Find the face with the highest accumulated vote
+    let bestId = currentSpeakerRef.current;
+    let bestScore = votes[bestId] || 0;
+    for (const face of activeFaces) {
+      const score = votes[face.id] || 0;
+      if (score > bestScore + SWITCH_MARGIN) {
+        bestId = face.id;
+        bestScore = score;
+      }
+    }
+
+    // Hysteresis: only switch if lock has expired
+    if (speakerLockFramesRef.current > 0) {
+      speakerLockFramesRef.current--;
+    }
+
+    if (bestId !== currentSpeakerRef.current && speakerLockFramesRef.current <= 0) {
+      currentSpeakerRef.current = bestId;
+      speakerLockFramesRef.current = LOCK_FRAMES;
+    }
+
+    activeSpeakersRef.current = [currentSpeakerRef.current];
   }, [activeFaces, audioLevel]);
 
   // Periodic Cleanup Effect
@@ -262,11 +305,8 @@ function App() {
     .join(" ");
 
   const isFaceSpeaking = (face: any) => {
-    const audioThreshold = 0.005;
-    if (audioLevel > audioThreshold) {
-      return face.mouthActivity > 0.04;
-    }
-    return face.jawOpen > 0.15;
+    // A face is "speaking" if it's the currently attributed speaker and audio is present
+    return audioLevel > 0.005 && face.id === currentSpeakerRef.current && face.mouthActivity > 0.08;
   };
 
   return (
@@ -382,7 +422,17 @@ function App() {
         <section className="panel">
           <div className="panel-header">Conversation Intel</div>
           <div className="panel-body">
-            <SummaryPanel transcript={transcript} isRecording={isRecording} />
+            {isRecording && !showSummary ? (
+              <CoachPanel
+                transcript={transcript}
+                captionCount={displaySegments.length}
+                isActive={isRecording}
+                startTime={startTime}
+                onSummarize={() => setShowSummary(true)}
+              />
+            ) : (
+              <SummaryPanel transcript={transcript} isRecording={isRecording} />
+            )}
           </div>
         </section>
       </main>
