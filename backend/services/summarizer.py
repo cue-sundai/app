@@ -65,24 +65,31 @@ async def _summarize_anthropic(transcript: str, api_key: str) -> dict[str, Any]:
     from anthropic import AsyncAnthropic
 
     client = AsyncAnthropic(api_key=api_key)
-    response = await client.messages.create(
-        model="claude-3-5-haiku-20241022",
-        max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": _SUMMARY_PROMPT + (transcript or "(no transcript)"),
-            }
-        ],
-    )
-    block = response.content[0]
-    content = (getattr(block, "text", "") or "").strip()
-    out = _parse_json_from_response(content)
-    return {
-        "summary": out.get("summary", "") or "No summary generated.",
-        "people": out.get("people") if isinstance(out.get("people"), list) else [],
-        "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
-    }
+    try:
+        response = await client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": _SUMMARY_PROMPT + (transcript or "(no transcript)"),
+                }
+            ],
+        )
+        block = response.content[0]
+        content = (getattr(block, "text", "") or "").strip()
+        out = _parse_json_from_response(content)
+        return {
+            "summary": out.get("summary", "") or "No summary generated.",
+            "people": out.get("people") if isinstance(out.get("people"), list) else [],
+            "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
+        }
+    except Exception as e:
+        return {
+            "summary": f"Anthropic error: {e}",
+            "people": [],
+            "topics": [],
+        }
 
 
 async def summarize(transcript: str) -> dict[str, Any]:
@@ -103,3 +110,42 @@ async def summarize(transcript: str) -> dict[str, Any]:
         "people": [],
         "topics": [],
     }
+
+async def chat_with_llm(transcript: str, prompt: str) -> str:
+    """Chat interactively with the transcript using an LLM."""
+    openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
+    anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    
+    sys_prompt = f"You are a helpful assistant assisting a user during a real-life context. Rely on the following live transcript as context:\n\nTRANSCRIPT:\n{transcript}"
+
+    if openai_key:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=openai_key)
+        try:
+            resp = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as e:
+            return f"OpenAI error: {e}"
+            
+    if anthropic_key:
+        from anthropic import AsyncAnthropic
+        client = AsyncAnthropic(api_key=anthropic_key)
+        try:
+            resp = await client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=1024,
+                system=sys_prompt,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            block = resp.content[0]
+            return (getattr(block, "text", "") or "").strip()
+        except Exception as e:
+            return f"Anthropic error: {e}"
+            
+    return "No API Key available."

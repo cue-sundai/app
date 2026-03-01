@@ -19,6 +19,9 @@ def _get_api_key() -> str:
 
 async def _audio_to_pcm_16k(audio_bytes: bytes, mime_type: str) -> bytes:
     """Convert WebM/MP4/OGG to PCM 16kHz mono using PyAV. No system ffmpeg required."""
+    if mime_type == "audio/pcm":
+        return audio_bytes
+        
     def _convert():
         # Open the audio bytes as an in-memory file
         import av
@@ -49,18 +52,19 @@ async def run_realtime_session(
     *,
     mime_type: str,
     audio_chunk_queue: asyncio.Queue[bytes | None],
-    out_queue: asyncio.Queue[tuple[str, Any]],
+    out_queue: asyncio.Queue[tuple[str, Any, int]],
+    speaker_id: int = 0
 ) -> None:
-    """Connect to ElevenLabs realtime STT; consume from audio_chunk_queue (bytes or None for newSession); put ("segments", list) or ("error", str) in out_queue."""
+    """Connect to ElevenLabs realtime STT; consume from audio_chunk_queue (bytes or None for newSession); put ("segments", list, speaker_id) or ("error", str, speaker_id) in out_queue."""
     api_key = _get_api_key()
     if not api_key:
-        out_queue.put_nowait(("error", "[Set ELEVEN_LABS_API_KEY for transcription]"))
+        out_queue.put_nowait(("error", "[Set ELEVEN_LABS_API_KEY for transcription]", speaker_id))
         return
 
     try:
         import websockets
     except ImportError:
-        out_queue.put_nowait(("error", "Install websockets"))
+        out_queue.put_nowait(("error", "Install websockets", speaker_id))
         return
 
     url = (
@@ -80,19 +84,26 @@ async def run_realtime_session(
             if chunk is None:
                 header_chunk = None
                 continue
-            if len(chunk) < 200:
-                continue
-            if header_chunk is None:
-                header_chunk = chunk
-                continue
-            merged = header_chunk + chunk
-            try:
-                pcm = await _audio_to_pcm_16k(merged, mime_type)
-            except Exception as e:
-                out_queue.put_nowait(("error", str(e)))
-                continue
+                
+            if mime_type == "audio/pcm":
+                # For PCM, just send it directly. No header needed.
+                pcm = chunk
+            else:
+                if len(chunk) < 200:
+                    continue
+                if header_chunk is None:
+                    header_chunk = chunk
+                    continue
+                merged = header_chunk + chunk
+                try:
+                    pcm = await _audio_to_pcm_16k(merged, mime_type)
+                except Exception as e:
+                    out_queue.put_nowait(("error", str(e), speaker_id))
+                    continue
+                
             if not pcm or len(pcm) < 100:
                 continue
+                
             b64 = base64.standard_b64encode(pcm).decode("ascii")
             await ws.send(
                 json.dumps(
@@ -113,7 +124,7 @@ async def run_realtime_session(
             open_timeout=10,
         ) as ws:
             out_queue.put_nowait(
-                ("segments", [{"speaker": 0, "text": "[Live captions connected]"}])
+                ("segments", [{"speaker": 0, "text": "[Live captions connected]"}], speaker_id)
             )
             consumer = asyncio.create_task(consume_queue(ws))
             try:
@@ -129,14 +140,14 @@ async def run_realtime_session(
                         text = (msg.get("text") or "").strip()
                         if text:
                             out_queue.put_nowait(
-                                ("partial", [{"speaker": 0, "text": text}])
+                                ("partial", [{"speaker": speaker_id, "text": text}], speaker_id)
                             )
                         continue
                     if mt == "committed_transcript":
                         text = (msg.get("text") or "").strip()
                         if text:
                             out_queue.put_nowait(
-                                ("segments", [{"speaker": 0, "text": text}])
+                                ("segments", [{"speaker": speaker_id, "text": text}], speaker_id)
                             )
                     elif mt == "committed_transcript_with_timestamps":
                         text = (msg.get("text") or "").strip()
@@ -172,14 +183,14 @@ async def run_realtime_session(
                                     }
                                 )
                             if segments:
-                                out_queue.put_nowait(("segments", segments))
+                                out_queue.put_nowait(("segments", segments, speaker_id))
                             else:
                                 out_queue.put_nowait(
-                                    ("segments", [{"speaker": 0, "text": text}])
+                                    ("segments", [{"speaker": speaker_id, "text": text}], speaker_id)
                                 )
                     elif mt in ("error", "auth_error", "transcriber_error"):
                         out_queue.put_nowait(
-                            ("error", msg.get("error", "Unknown error"))
+                            ("error", msg.get("error", "Unknown error"), speaker_id)
                         )
             finally:
                 consumer.cancel()
@@ -188,4 +199,4 @@ async def run_realtime_session(
                 except asyncio.CancelledError:
                     pass
     except Exception as e:
-        out_queue.put_nowait(("error", f"Realtime STT connection failed: {e!s}"))
+        out_queue.put_nowait(("error", f"Realtime STT connection failed: {e!s}", speaker_id))

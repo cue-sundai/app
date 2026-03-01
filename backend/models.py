@@ -27,3 +27,10 @@ class SummarizeResponse(BaseModel):
     summary: str
     people: list[str]
     topics: list[str]
+
+class ChatRequest(BaseModel):
+    transcript: str
+    prompt: str
+
+class ChatResponse(BaseModel):
+    response: str
