@@ -1,32 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface SummaryPanelProps {
   transcript: string;
+  isRecording: boolean;
 }
 
-export function SummaryPanel({ transcript }: SummaryPanelProps) {
+export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
   const [summary, setSummary] = useState<{
     summary: string;
     people: string[];
     topics: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const wasRecordingRef = useRef(false);
 
-  async function handleSummarize() {
+  async function runSummarize() {
+    if (!transcript.trim()) return;
     setLoading(true);
-    const res = await fetch("/api/summarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
-    });
-    const data = await res.json();
-    setSummary(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      });
+      const data = await res.json();
+      setSummary(data);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  // When recording stops, auto-run summarization
+  useEffect(() => {
+    if (wasRecordingRef.current && !isRecording && transcript.trim()) {
+      runSummarize();
+    }
+    wasRecordingRef.current = isRecording;
+  }, [isRecording, transcript]);
 
   return (
     <div style={{ padding: "1rem", borderTop: "1px solid #333" }}>
-      <button onClick={handleSummarize} disabled={!transcript || loading}>
+      <button onClick={runSummarize} disabled={!transcript || loading}>
         {loading ? "Summarizing..." : "Summarize Conversation"}
       </button>
 
