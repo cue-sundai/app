@@ -1,67 +1,30 @@
-"""Conversation summarization service using Claude."""
+"""Conversation summarization service.
 
-import json
-import os
-import re
-
-import anthropic
-
-
-def _clean_json(text: str) -> str:
-    """Strip markdown code fences if Claude wraps the JSON in them."""
-    cleaned = re.sub(r"^```(?:json)?\s*", "", text.strip())
-    cleaned = re.sub(r"\s*```$", "", cleaned)
-    return cleaned
+TODO: Replace mock with LLM integration (OpenAI, Anthropic, etc.).
+"""
 
 
 async def summarize(transcript: str) -> dict:
-    """Summarize a conversation transcript using Claude.
-
-    Sends the transcript to Claude and gets back structured JSON with
-    summary, people, topics, and action items.
+    """Summarize a conversation transcript.
 
     Args:
         transcript: Full conversation text to summarize.
 
     Returns:
-        Dict with keys: summary, people, topics, action_items.
+        Dict with keys: summary, people, topics.
     """
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": f"""Analyze this conversation transcript and return a JSON object with exactly these keys:
-
-- "summary": A 2-3 sentence summary of what was discussed
-- "people": An array of names of people mentioned or participating
-- "topics": An array of topics discussed (e.g. "API Design", "AI Infrastructure")
-- "action_items": An array of objects, each with "text" (what needs to be done) and optionally "assignee" (who should do it)
-
-Return ONLY valid JSON, no markdown, no explanation.
-
-Transcript:
-{transcript}""",
-            }
-        ],
-    )
-
-    try:
-        raw = _clean_json(message.content[0].text)
-        result = json.loads(raw)
-        # Ensure all expected keys exist
-        result.setdefault("summary", "Could not generate summary.")
-        result.setdefault("people", [])
-        result.setdefault("topics", [])
-        result.setdefault("action_items", [])
-        return result
-    except (json.JSONDecodeError, IndexError):
-        return {
-            "summary": message.content[0].text[:200] if message.content else "Error generating summary.",
-            "people": [],
-            "topics": [],
-            "action_items": [],
-        }
+    # --- PLACEHOLDER ---
+    # Replace with LLM call, e.g.:
+    #   from openai import AsyncOpenAI
+    #   client = AsyncOpenAI()
+    #   response = await client.chat.completions.create(
+    #       model="gpt-4o",
+    #       messages=[{"role": "user", "content": f"Summarize this conversation: {transcript}"}],
+    #   )
+    #   parsed = json.loads(response.choices[0].message.content)
+    #   return parsed
+    return {
+        "summary": f"[mock summary] Conversation with {len(transcript.split())} words.",
+        "people": ["Person A", "Person B"],
+        "topics": ["introductions", "networking"],
+    }
