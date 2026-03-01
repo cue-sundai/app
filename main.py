@@ -2,15 +2,16 @@ import os
 import time
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import ttk
 from PIL import Image, ImageTk
 import cv2
 import speech_recognition as sr
 
 
-class SurveillanceApp:
+class CueApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Webcam & Audio Monitor")
+        self.root.title("Cue")
         self.root.geometry("800x650")
 
         self.running = False
@@ -25,6 +26,9 @@ class SurveillanceApp:
         # Create a unique text file based on the program startup time
         self.output_txt = f"output/transcription_{time.strftime('%Y%m%d-%H%M%S')}.txt"
 
+        self.report_data = []
+        self.report_md = f"output/report_{time.strftime('%Y%m%d-%H%M%S')}.md"
+
         # --- GUI Elements Setup ---
 
         # Label to display the webcam feed
@@ -33,31 +37,29 @@ class SurveillanceApp:
 
         # Log and Transcription area
         self.text_area = scrolledtext.ScrolledText(
-            self.root, wrap=tk.WORD, height=12, width=80
+            self.root, wrap=tk.WORD, height=12, width=80, font=("Helvetica", 11)
         )
         self.text_area.pack(pady=10)
 
         # Buttons
-        self.btn_frame = tk.Frame(self.root)
+        self.btn_frame = ttk.Frame(self.root)
         self.btn_frame.pack(pady=10)
 
-        self.start_btn = tk.Button(
-            self.btn_frame, text="Start Monitor", command=self.start, width=15
+        self.start_btn = ttk.Button(
+            self.btn_frame, text="Start Recording", command=self.start, width=15
         )
         self.start_btn.grid(row=0, column=0, padx=10)
 
-        self.stop_btn = tk.Button(
+        self.stop_btn = ttk.Button(
             self.btn_frame,
-            text="Stop Monitor",
+            text="Stop Recording",
             command=self.stop,
             state=tk.DISABLED,
             width=15,
         )
         self.stop_btn.grid(row=0, column=1, padx=10)
 
-        self.write_log(
-            f"System ready. Transcriptions will be saved to: {self.output_txt}"
-        )
+        self.write_log(f"Cue ready. Reports will be saved to: {self.report_md}")
 
     def write_log(self, text):
         """Helper to safely write to the UI log and the output text file"""
@@ -72,6 +74,7 @@ class SurveillanceApp:
             # We use Google's free Speech Recognition API for simplicity.
             # Without internet, you'd need local libraries like pocketsphinx or whisper.
             text = recognizer.recognize_google(audio)
+            self.report_data.append(f"**Transcript:** {text}\n\n")
 
             # Update GUI from background thread safely via `after_idle` or scheduling
             # `self.root.after()` schedules the call on the main GUI thread.
@@ -88,7 +91,7 @@ class SurveillanceApp:
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
         self.running = True
-        self.write_log("\n--- Monitoring Started ---")
+        self.write_log("\n--- Recording Started ---")
 
         # 1. Start Webcam Video Capture
         self.cap = cv2.VideoCapture(0)
@@ -130,6 +133,9 @@ class SurveillanceApp:
                 img_path = f"output/images/frame_{int(current_time)}.jpg"
                 cv2.imwrite(img_path, frame)
                 self.write_log(f"Saved Image: {img_path}")
+                self.report_data.append(
+                    f"![Saved Image](images/frame_{int(current_time)}.jpg)\n\n"
+                )
                 self.last_img_time = current_time
 
             # Convert OpenCV frame (BGR) to Tkinter friendly format (RGBA)
@@ -156,7 +162,11 @@ class SurveillanceApp:
             self.stop_listening_fn(wait_for_stop=False)
 
         self.video_label.configure(image="")
-        self.write_log("--- Monitoring Stopped ---")
+        self.write_log("--- Recording Stopped ---")
+
+        with open(self.report_md, "w", encoding="utf-8") as f:
+            f.writelines(self.report_data)
+        self.write_log(f"Report saved to: {self.report_md}")
 
     def on_closing(self):
         self.stop()
@@ -165,7 +175,7 @@ class SurveillanceApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SurveillanceApp(root)
+    app = CueApp(root)
     # Ensure camera/audio is released neatly on 'X' press
     root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()
