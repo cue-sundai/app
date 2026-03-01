@@ -1,19 +1,25 @@
+import type { TranscriptSegment } from "../hooks/useAudioCapture";
+
 interface CaptionViewProps {
-  captions: string[];
+  segments: TranscriptSegment[];
 }
 
-export function CaptionView({ captions }: CaptionViewProps) {
+function speakerLabel(speaker: number): string {
+  return speaker === 0 ? "You" : `Speaker ${speaker + 1}`;
+}
+
+export function CaptionView({ segments }: CaptionViewProps) {
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
       <h2>Live Captions</h2>
-      {captions.length === 0 ? (
+      {segments.length === 0 ? (
         <p style={{ color: "#888" }}>
-          Press Start to begin capturing audio...
+          Press Start to begin capturing audio and video...
         </p>
       ) : (
-        captions.map((text, i) => (
+        segments.map((seg, i) => (
           <p key={i} style={{ margin: "0.25rem 0" }}>
-            {text}
+            <strong>{speakerLabel(seg.speaker)}:</strong> {seg.text}
           </p>
         ))
       )}
