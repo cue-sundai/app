@@ -8,7 +8,7 @@ from services.summarizer import summarize
 app = FastAPI(title="Side-Quest API")
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # ty: ignore[invalid-argument-type]
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
