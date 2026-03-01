@@ -1,30 +1,105 @@
-"""Conversation summarization service.
+"""Conversation summarization via OpenAI or Anthropic.
 
-TODO: Replace mock with LLM integration (OpenAI, Anthropic, etc.).
+Uses OPENAI_API_KEY or ANTHROPIC_API_KEY from the environment.
+Returns summary, people, and topics for the frontend.
 """
 
+import json
+import os
+import re
+from typing import Any
 
-async def summarize(transcript: str) -> dict:
-    """Summarize a conversation transcript.
 
-    Args:
-        transcript: Full conversation text to summarize.
+_SUMMARY_PROMPT = """\
+Analyze this conversation transcript and respond with a single JSON object (no markdown, no code block) with exactly these keys:
+- "summary": string, 2-4 sentences summarizing what was discussed and any outcomes.
+- "people": array of strings, names or identifiers of people mentioned or implied (e.g. "Sarah", "the interviewer"). Use empty array if none.
+- "topics": array of strings, main topics or themes (e.g. "project timeline", "budget"). Use empty array if none.
 
-    Returns:
-        Dict with keys: summary, people, topics.
-    """
-    # --- PLACEHOLDER ---
-    # Replace with LLM call, e.g.:
-    #   from openai import AsyncOpenAI
-    #   client = AsyncOpenAI()
-    #   response = await client.chat.completions.create(
-    #       model="gpt-4o",
-    #       messages=[{"role": "user", "content": f"Summarize this conversation: {transcript}"}],
-    #   )
-    #   parsed = json.loads(response.choices[0].message.content)
-    #   return parsed
+Transcript:
+"""
+_EMPTY = {"summary": "", "people": [], "topics": []}
+
+
+def _parse_json_from_response(text: str) -> dict[str, Any]:
+    """Extract JSON object from LLM response, with fallback."""
+    text = text.strip()
+    # Strip markdown code block if present
+    if "```" in text:
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+        if match:
+            text = match.group(1).strip()
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            return data
+    except json.JSONDecodeError:
+        pass
+    return _EMPTY
+
+
+async def _summarize_openai(transcript: str, api_key: str) -> dict[str, Any]:
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": _SUMMARY_PROMPT + (transcript or "(no transcript)"),
+            }
+        ],
+        max_tokens=1024,
+    )
+    content = (response.choices[0].message.content or "").strip()
+    out = _parse_json_from_response(content)
     return {
-        "summary": f"[mock summary] Conversation with {len(transcript.split())} words.",
-        "people": ["Person A", "Person B"],
-        "topics": ["introductions", "networking"],
+        "summary": out.get("summary", "") or "No summary generated.",
+        "people": out.get("people") if isinstance(out.get("people"), list) else [],
+        "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
+    }
+
+
+async def _summarize_anthropic(transcript: str, api_key: str) -> dict[str, Any]:
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic(api_key=api_key)
+    response = await client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": _SUMMARY_PROMPT + (transcript or "(no transcript)"),
+            }
+        ],
+    )
+    block = response.content[0]
+    content = (getattr(block, "text", "") or "").strip()
+    out = _parse_json_from_response(content)
+    return {
+        "summary": out.get("summary", "") or "No summary generated.",
+        "people": out.get("people") if isinstance(out.get("people"), list) else [],
+        "topics": out.get("topics") if isinstance(out.get("topics"), list) else [],
+    }
+
+
+async def summarize(transcript: str) -> dict[str, Any]:
+    """Summarize a conversation transcript using OpenAI or Anthropic.
+
+    Returns dict with keys: summary (str), people (list[str]), topics (list[str]).
+    """
+    openai_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
+    anthropic_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+
+    if openai_key:
+        return await _summarize_openai(transcript, openai_key)
+    if anthropic_key:
+        return await _summarize_anthropic(transcript, anthropic_key)
+
+    return {
+        "summary": "No OPENAI_API_KEY or ANTHROPIC_API_KEY set. Add one to backend/.env.",
+        "people": [],
+        "topics": [],
     }
