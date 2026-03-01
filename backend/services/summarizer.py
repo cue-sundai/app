@@ -24,7 +24,18 @@ async def summarize(transcript: str) -> dict:
     #   parsed = json.loads(response.choices[0].message.content)
     #   return parsed
     return {
-        "summary": f"[mock summary] Conversation with {len(transcript.split())} words.",
-        "people": ["Person A", "Person B"],
-        "topics": ["introductions", "networking"],
+        "summary": "Sarah from Stripe and Alex from Vercel connected at a networking event. They discussed API versioning challenges, deployment pipelines, and an upcoming AI infrastructure panel. They agreed to follow up with shared resources and schedule a call.",
+        "people": ["Sarah", "Alex"],
+        "topics": ["API Design", "Deployment Pipelines", "AI Infrastructure", "Versioning"],
+        "action_items": [
+            {"text": "Send calendar invite for Thursday call", "assignee": "Sarah"},
+            {"text": "Share API versioning docs", "assignee": "Sarah"},
+            {"text": "Send notes from Anthropic talk", "assignee": "Alex"},
+            {"text": "Follow up with deployment docs", "assignee": "Alex"},
+            {"text": "Compare versioning approaches"},
+        ],
+        "calendar_events": [
+            {"title": "Versioning deep-dive call", "date": "Thursday", "time": "afternoon", "attendee": "Sarah"},
+            {"title": "AI Infrastructure panel", "date": "today", "time": "later", "attendee": "Alex"},
+        ],
     }

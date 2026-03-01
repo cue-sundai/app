@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActionItems, type ActionItem } from "./ActionItems";
+import { ActionItems, type ActionItem, type CalendarEvent } from "./ActionItems";
 
 interface SummaryPanelProps {
   transcript: string;
@@ -11,6 +11,7 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
     people: string[];
     topics: string[];
     action_items: ActionItem[];
+    calendar_events: CalendarEvent[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -131,9 +132,13 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
         </div>
       )}
 
-      {/* Action items */}
-      {summary!.action_items?.length > 0 && (
-        <ActionItems items={summary!.action_items} />
+      {/* Action items + calendar events */}
+      {(summary!.action_items?.length > 0 || summary!.calendar_events?.length > 0) && (
+        <ActionItems
+          items={summary!.action_items || []}
+          calendarEvents={summary!.calendar_events || []}
+          people={summary!.people}
+        />
       )}
 
       {/* Re-summarize button */}
