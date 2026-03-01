@@ -5,7 +5,7 @@ from models import SummarizeRequest, SummarizeResponse
 from services.transcriber import transcribe
 from services.summarizer import summarize
 
-app = FastAPI(title="Side-Quest API")
+app = FastAPI(title="Cue API")
 
 app.add_middleware(
     CORSMiddleware,

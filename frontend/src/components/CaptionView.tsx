@@ -1,22 +1,33 @@
+import { useEffect, useRef } from "react";
+
 interface CaptionViewProps {
   captions: string[];
 }
 
 export function CaptionView({ captions }: CaptionViewProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [captions]);
+
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
-      <h2>Live Captions</h2>
-      {captions.length === 0 ? (
-        <p style={{ color: "#888" }}>
-          Press Start to begin capturing audio...
-        </p>
-      ) : (
-        captions.map((text, i) => (
-          <p key={i} style={{ margin: "0.25rem 0" }}>
-            {text}
+    <div className="panel">
+      <div className="panel-header">Live Transcript</div>
+      <div className="panel-body">
+        {captions.length === 0 ? (
+          <p className="caption-placeholder">
+            Press Start to begin capturing audio...
           </p>
-        ))
-      )}
+        ) : (
+          captions.map((text, i) => (
+            <p key={i} className="caption-line">
+              {text}
+            </p>
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }

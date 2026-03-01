@@ -4,19 +4,34 @@ import { useRef, useState, useCallback } from "react";
  * Hook for capturing microphone audio and streaming it via WebSocket.
  *
  * Usage:
- *   const { isRecording, start, stop } = useAudioCapture(onTranscript);
+ *   const { isRecording, error, start, stop } = useAudioCapture(onTranscript);
  */
 export function useAudioCapture(
   onTranscript: (text: string, isFinal: boolean) => void,
 ) {
   const [isRecording, setIsRecording] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
   const start = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setError(null);
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("Microphone access denied. Please allow mic permissions.");
+      return;
+    }
+
     const ws = new WebSocket(`ws://${window.location.host}/ws/transcribe`);
     wsRef.current = ws;
+
+    ws.onerror = () => {
+      setError("Could not connect to transcription service.");
+      stream.getTracks().forEach((t) => t.stop());
+    };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -47,5 +62,5 @@ export function useAudioCapture(
     setIsRecording(false);
   }, []);
 
-  return { isRecording, start, stop };
+  return { isRecording, error, start, stop };
 }
