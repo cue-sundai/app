@@ -80,7 +80,11 @@ async def websocket_transcribe(ws: WebSocket):
                 continue
             if kind == "segments":
                 await ws.send_json(
-                    {"segments": payload, "is_final": False, "replace": False}
+                    {"segments": payload, "is_final": False, "replace": False, "is_partial": False}
+                )
+            elif kind == "partial":
+                await ws.send_json(
+                    {"segments": payload, "is_final": False, "replace": False, "is_partial": True}
                 )
             elif kind == "error":
                 await ws.send_json(

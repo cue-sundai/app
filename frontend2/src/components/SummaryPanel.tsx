@@ -1,39 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ActionItems, type ActionItem } from "./ActionItems";
 
 interface SummaryPanelProps {
   transcript: string;
+  isRecording: boolean;
 }
 
-export function SummaryPanel({ transcript }: SummaryPanelProps) {
+export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
   const [summary, setSummary] = useState<{
     summary: string;
     people: string[];
     topics: string[];
-    action_items: ActionItem[];
+    action_items?: ActionItem[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const wasRecordingRef = useRef(false);
 
-  async function handleSummarize() {
+  async function runSummarize() {
+    if (!transcript.trim()) return;
     setLoading(true);
-    const res = await fetch("/api/summarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
-    });
-    const data = await res.json();
-    setSummary(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      });
+      const data = await res.json();
+      setSummary(data);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    if (wasRecordingRef.current && !isRecording && transcript.trim()) {
+      runSummarize();
+    }
+    wasRecordingRef.current = isRecording;
+  }, [isRecording, transcript]);
 
   if (!summary && !loading) {
     return (
       <div style={{ textAlign: "center", marginTop: "3rem" }}>
         <p style={{ color: "#52525b", fontSize: "0.9rem", marginBottom: "1rem" }}>
-          Analyze the conversation to extract insights
+          Analyze the conversation to extract insights (auto-runs when you stop
+          listening)
         </p>
         <button
-          onClick={handleSummarize}
+          onClick={runSummarize}
           disabled={!transcript}
           style={{
             backgroundColor: "#1e1b4b",
@@ -58,7 +72,6 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      {/* Summary card */}
       <div
         style={{
           backgroundColor: "#18181b",
@@ -67,7 +80,16 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
           padding: "1rem",
         }}
       >
-        <h3 style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", marginBottom: "0.5rem" }}>
+        <h3
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            color: "#71717a",
+            marginBottom: "0.5rem",
+          }}
+        >
           Summary
         </h3>
         <p style={{ fontSize: "0.9rem", lineHeight: 1.7, color: "#d4d4d8" }}>
@@ -75,10 +97,18 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
         </p>
       </div>
 
-      {/* People chips */}
       {summary!.people.length > 0 && (
         <div>
-          <h3 style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "#71717a",
+              marginBottom: "0.5rem",
+            }}
+          >
             People
           </h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -103,10 +133,18 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
         </div>
       )}
 
-      {/* Topic chips */}
       {summary!.topics.length > 0 && (
         <div>
-          <h3 style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "#71717a",
+              marginBottom: "0.5rem",
+            }}
+          >
             Topics
           </h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -131,14 +169,12 @@ export function SummaryPanel({ transcript }: SummaryPanelProps) {
         </div>
       )}
 
-      {/* Action items */}
-      {summary!.action_items?.length > 0 && (
+      {summary!.action_items?.length ? (
         <ActionItems items={summary!.action_items} />
-      )}
+      ) : null}
 
-      {/* Re-summarize button */}
       <button
-        onClick={handleSummarize}
+        onClick={runSummarize}
         disabled={!transcript}
         style={{ alignSelf: "flex-start", fontSize: "0.8rem" }}
       >

@@ -1,28 +1,37 @@
 import { useEffect, useRef } from "react";
+import type { TranscriptSegment } from "../hooks/useAudioCapture";
 
 interface CaptionViewProps {
-  captions: string[];
+  segments: TranscriptSegment[];
 }
 
-export function CaptionView({ captions }: CaptionViewProps) {
+function speakerLabel(speaker: number): string {
+  return speaker === 0 ? "You" : `Speaker ${speaker + 1}`;
+}
+
+export function CaptionView({ segments }: CaptionViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [captions]);
+  }, [segments]);
 
-  if (captions.length === 0) {
+  if (segments.length === 0) {
     return (
       <div style={{ color: "#52525b", textAlign: "center", marginTop: "3rem" }}>
-        <p style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>Waiting for conversation...</p>
-        <p style={{ fontSize: "0.85rem" }}>Press Start Listening to begin</p>
+        <p style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
+          Waiting for conversation...
+        </p>
+        <p style={{ fontSize: "0.85rem" }}>
+          Press Start Listening to begin (camera + mic)
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      {captions.map((text, i) => (
+      {segments.map((seg, i) => (
         <div
           key={i}
           style={{
@@ -35,7 +44,7 @@ export function CaptionView({ captions }: CaptionViewProps) {
             color: "#d4d4d8",
           }}
         >
-          {text}
+          <strong>{speakerLabel(seg.speaker)}:</strong> {seg.text}
         </div>
       ))}
       <div ref={bottomRef} />

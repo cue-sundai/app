@@ -5,10 +5,22 @@ import { SummaryPanel } from "./components/SummaryPanel";
 
 function App() {
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
+  const [partialSegment, setPartialSegment] = useState<TranscriptSegment | null>(
+    null,
+  );
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const handleTranscript = useCallback(
-    (newSegments: TranscriptSegment[], replace?: boolean) => {
+    (
+      newSegments: TranscriptSegment[],
+      replace?: boolean,
+      isPartial?: boolean,
+    ) => {
+      if (isPartial) {
+        setPartialSegment(newSegments[0] ?? null);
+        return;
+      }
+      setPartialSegment(null);
       if (replace) {
         setSegments(newSegments);
       } else {
@@ -30,7 +42,11 @@ function App() {
     };
   }, [videoStream]);
 
-  const transcript = segments
+  const displaySegments = [
+    ...segments,
+    ...(partialSegment ? [partialSegment] : []),
+  ];
+  const transcript = displaySegments
     .map(
       (s) =>
         `${s.speaker === 0 ? "You" : `Speaker ${s.speaker + 1}`}: ${s.text}`,
@@ -67,7 +83,7 @@ function App() {
         </div>
       )}
 
-      <CaptionView segments={segments} />
+      <CaptionView segments={displaySegments} />
       <SummaryPanel transcript={transcript} isRecording={isRecording} />
     </div>
   );

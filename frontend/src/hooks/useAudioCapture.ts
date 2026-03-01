@@ -23,9 +23,14 @@ function getSupportedAudioMimeType(): string {
  * Hook for capturing microphone audio and webcam video, streaming audio via WebSocket.
  * Returns the video stream so the UI can show the webcam.
  * When the backend sends replace: true, onTranscript is called with (segments, true) to replace instead of append.
+ * When is_partial: true, the segments are the current in-progress line (UI should replace last line, not append).
  */
 export function useAudioCapture(
-  onTranscript: (segments: TranscriptSegment[], replace?: boolean) => void,
+  onTranscript: (
+    segments: TranscriptSegment[],
+    replace?: boolean,
+    isPartial?: boolean,
+  ) => void,
 ) {
   const [isRecording, setIsRecording] = useState(false);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
@@ -62,7 +67,11 @@ export function useAudioCapture(
           ? [{ speaker: 0, text: data.text }]
           : [];
       if (segments.length > 0) {
-        onTranscript(segments, data.replace === true);
+        onTranscript(
+          segments,
+          data.replace === true,
+          data.is_partial === true,
+        );
       }
     };
 

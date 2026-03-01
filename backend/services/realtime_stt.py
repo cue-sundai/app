@@ -129,9 +129,10 @@ async def run_realtime_session(
                         text = (msg.get("text") or "").strip()
                         if text:
                             out_queue.put_nowait(
-                                ("segments", [{"speaker": 0, "text": text}])
+                                ("partial", [{"speaker": 0, "text": text}])
                             )
-                    elif mt == "committed_transcript":
+                        continue
+                    if mt == "committed_transcript":
                         text = (msg.get("text") or "").strip()
                         if text:
                             out_queue.put_nowait(
