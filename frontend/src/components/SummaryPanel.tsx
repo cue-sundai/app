@@ -21,7 +21,7 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
     if (!transcript.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://${window.location.hostname}:8820/api/summarize`, {
+      const res = await fetch(`https://side-quest-backend-227787877869.us-central1.run.app/api/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript }),

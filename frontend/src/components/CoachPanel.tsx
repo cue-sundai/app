@@ -57,7 +57,7 @@ export function CoachPanel({
         const elapsed = startTimeRef.current
           ? Math.floor((Date.now() - startTimeRef.current) / 1000)
           : 0;
-        const res = await fetch(`http://${window.location.hostname}:8820/api/coach`, {
+        const res = await fetch(`https://side-quest-backend-227787877869.us-central1.run.app/api/coach`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

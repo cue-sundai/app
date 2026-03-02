@@ -76,7 +76,7 @@ function App() {
       const payloadTranscript = force ? `[SYSTEM: YOU MUST INTERJECT NOW EVEN IF AWKWARD]\n${transcriptString}` : transcriptString;
 
       // Send full conversation so the AI has entire context for interject decision
-      const res = await fetch(`http://${window.location.hostname}:8820/api/agent_interject`, {
+      const res = await fetch(`https://side-quest-backend-227787877869.us-central1.run.app/api/agent_interject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -225,7 +225,7 @@ function App() {
         }
 
         try {
-          const res = await fetch(`http://${window.location.hostname}:8820/api/chat`, {
+          const res = await fetch(`https://side-quest-backend-227787877869.us-central1.run.app/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -307,7 +307,7 @@ function App() {
 
     (async () => {
       try {
-        const res = await fetch(`http://${window.location.hostname}:8820/api/chat`, {
+        const res = await fetch(`https://side-quest-backend-227787877869.us-central1.run.app/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
