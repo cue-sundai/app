@@ -66,10 +66,17 @@ export function CoachPanel({
           }),
           signal: abortRef.current.signal,
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setInsights(data);
+        setInsights({
+          people: Array.isArray(data.people) ? data.people : [],
+          topics: Array.isArray(data.topics) ? data.topics : [],
+          suggested_questions: Array.isArray(data.suggested_questions) ? data.suggested_questions : [],
+          nudge: data.nudge ?? null,
+        });
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Coach analysis error", err);
       }
       setLoading(false);
     }, 2000);

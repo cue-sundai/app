@@ -52,11 +52,25 @@ async def coach_analyze(transcript: str, elapsed_seconds: int = 0) -> dict:
 
     user_msg = f"Conversation so far ({elapsed_seconds}s elapsed):\n\n{transcript}"
 
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=512,
-        system=COACH_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_msg}],
-    )
+    try:
+        response = await client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=512,
+            system=COACH_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        result = json.loads(response.content[0].text)
+        if not isinstance(result, dict):
+            result = {"people": [], "topics": [], "suggested_questions": [], "nudge": None}
+    except Exception as e:
+        print(f"Coach analysis error: {e}")
+        return {"people": [], "topics": [], "suggested_questions": [], "nudge": None}
 
-    return json.loads(response.content[0].text)
+    # Sanitize: filter out people with null/empty names (LLM sometimes returns these)
+    if "people" in result and isinstance(result["people"], list):
+        result["people"] = [
+            p for p in result["people"]
+            if isinstance(p, dict) and p.get("name")
+        ]
+
+    return result

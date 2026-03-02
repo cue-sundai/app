@@ -26,8 +26,18 @@ export function SummaryPanel({ transcript, isRecording }: SummaryPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setSummary(data);
+      setSummary({
+        summary: data.summary || "No summary available.",
+        people: Array.isArray(data.people) ? data.people : [],
+        topics: Array.isArray(data.topics) ? data.topics : [],
+        action_items: Array.isArray(data.action_items) ? data.action_items : [],
+        calendar_events: Array.isArray(data.calendar_events) ? data.calendar_events : [],
+      });
+    } catch (e) {
+      console.error("Summarize error", e);
+      setSummary({ summary: "Failed to summarize. Please try again.", people: [], topics: [] });
     } finally {
       setLoading(false);
     }

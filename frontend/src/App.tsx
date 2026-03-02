@@ -283,6 +283,84 @@ function App() {
     return () => clearInterval(intervalId);
   }, [isRecording]); // only depend on isRecording to avoid stale closures being problematic with Ref usage
 
+  // Post-recording transcript cleanup: thorough LLM pass when recording stops
+  const wasRecordingRef = useRef(false);
+  useEffect(() => {
+    if (isRecording) {
+      wasRecordingRef.current = true;
+      return;
+    }
+    if (!wasRecordingRef.current) return; // wasn't recording before
+    wasRecordingRef.current = false;
+
+    const liveSegments = segmentsRef.current;
+    if (liveSegments.length === 0) return;
+
+    const transcriptString = liveSegments
+      .map((s) => `[ID:${s.speaker}] ${s.text}`)
+      .join("\n");
+
+    if (!transcriptString.trim()) return;
+
+    // Add a visual indicator
+    setSegments(prev => [...prev, { speaker: -2, text: "Cleaning up transcript..." }]);
+
+    (async () => {
+      try {
+        const res = await fetch(`http://${window.location.hostname}:8820/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript: transcriptString,
+            prompt: `You are cleaning up a conversation transcript captured by speech-to-text with face-based speaker detection. The speaker IDs may have errors. Please:
+
+1. **Fix speaker attribution**: Look at the content and context of what's said. If it's obvious that adjacent segments from different IDs are actually the same person speaking continuously, merge them under one ID. Conversely, if one segment clearly contains two different people talking, split it.
+
+2. **Detect names**: If someone says "I'm Sarah" or "My name is John", or if someone addresses another person by name ("Hey Mike"), map those names to the correct speaker IDs based on context.
+
+3. **Clean up text**: Fix grammar, punctuation, remove stutters/filler words (um, uh, like), and make the transcript read naturally while preserving the original meaning.
+
+4. **Merge adjacent same-speaker segments**: If consecutive segments have the same speaker ID, combine them into one.
+
+5. **Preserve AI Agent segments**: Any segment with speaker ID -1 is from the AI Agent — keep these exactly as they are.
+
+Return ONLY a valid JSON object (no markdown, no code blocks) with:
+- "names": object mapping speaker ID to detected name (e.g. {"0": "Sarah", "1": "Mike"}). Only include IDs where you detected a name.
+- "segments": array of cleaned segments, each with {speaker: number, text: string}
+
+Return ONLY the JSON.`
+          }),
+        });
+
+        const data = await res.json();
+        const cleanJson = (data.response || "{}").replace(/```json/g, "").replace(/```/g, "").trim();
+
+        const parsed = JSON.parse(cleanJson);
+        if (parsed.names) {
+          setSpeakerNames(prev => {
+            const newNames = { ...prev };
+            for (const [k, v] of Object.entries(parsed.names)) {
+              if (k !== "-1" && Number(k) !== -1) {
+                newNames[Number(k)] = v as string;
+              }
+            }
+            return newNames;
+          });
+        }
+        if (Array.isArray(parsed.segments)) {
+          setSegments(parsed.segments);
+        } else {
+          // Remove the "Cleaning up..." indicator
+          setSegments(prev => prev.filter(s => s.speaker !== -2));
+        }
+      } catch (e) {
+        console.error("Post-recording cleanup error", e);
+        // Remove the "Cleaning up..." indicator
+        setSegments(prev => prev.filter(s => s.speaker !== -2));
+      }
+    })();
+  }, [isRecording]);
+
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !videoStream) return;
@@ -300,7 +378,7 @@ function App() {
   const transcript = displaySegments
     .map(
       (s) =>
-        `${speakerNames[s.speaker] || (s.speaker === 0 ? "You" : `Speaker ${s.speaker}`)}: ${s.text}`,
+        `${s.speaker === -2 ? "System" : speakerNames[s.speaker] || (s.speaker === 0 ? "You" : `Speaker ${s.speaker}`)}: ${s.text}`,
     )
     .join(" ");
 

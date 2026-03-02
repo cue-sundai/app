@@ -7,6 +7,7 @@ interface CaptionViewProps {
 }
 
 function speakerLabel(speaker: number, names?: Record<number, string>): string {
+  if (speaker === -2) return "";  // system message, no label
   if (names && names[speaker]) return names[speaker];
   return speaker === 0 ? "You" : `Speaker ${speaker}`;
 }
@@ -39,14 +40,19 @@ export function CaptionView({ segments, names }: CaptionViewProps) {
           style={{
             padding: "0.5rem 0.75rem",
             marginBottom: "0.25rem",
-            borderLeft: "3px solid #3f3f46",
+            borderLeft: seg.speaker === -2 ? "3px solid #71717a" : "3px solid #3f3f46",
             borderRadius: "2px",
-            fontSize: "0.9rem",
+            fontSize: seg.speaker === -2 ? "0.8rem" : "0.9rem",
             lineHeight: "1.6",
-            color: "#d4d4d8",
+            color: seg.speaker === -2 ? "#71717a" : "#d4d4d8",
+            fontStyle: seg.speaker === -2 ? "italic" : "normal",
           }}
         >
-          <strong>{speakerLabel(seg.speaker, names)}:</strong> {seg.text}
+          {seg.speaker === -2 ? (
+            seg.text
+          ) : (
+            <><strong>{speakerLabel(seg.speaker, names)}:</strong> {seg.text}</>
+          )}
         </div>
       ))}
       <div ref={bottomRef} />
