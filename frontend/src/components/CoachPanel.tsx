@@ -23,7 +23,6 @@ interface CoachPanelProps {
 export function CoachPanel({
   transcript,
   captionCount,
-  isActive,
   startTime,
   onSummarize,
 }: CoachPanelProps) {
