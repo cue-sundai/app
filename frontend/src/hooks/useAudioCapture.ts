@@ -37,7 +37,7 @@ export function useAudioCapture(
     streamRef.current = stream;
     setVideoStream(stream);
 
-    const ws = new WebSocket(`ws://${window.location.host}/ws/transcribe`);
+    const ws = new WebSocket(`wss://side-quest-backend-227787877869.us-central1.run.app/ws/transcribe`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
